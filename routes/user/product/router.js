@@ -5,11 +5,12 @@ const { validateSchema } = require('../../../utils');
 const { getProductSchema } = require('./validations');
 const {
   getProductAll,
-  getBestSeller,
+  getHotSell,
   getProductDetail,
 } = require('./controller');
 
 router.route('/').get(getProductAll)
+router.route('/hotsell').get(getHotSell)
 router.route('/:id').get(validateSchema(getProductSchema), getProductDetail)
 
 module.exports = router;

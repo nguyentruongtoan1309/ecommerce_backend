@@ -1,10 +1,10 @@
-
-const { Customer } = require('../../../models');
+const { Order, Customer, Employee, Product } = require('../../../models');
+const { asyncForEach } = require('../../../utils');
 
 module.exports = {
     getAll: async (req, res, next) => {
         try {
-            let results = await Customer.find()
+            let results = await Order.find();
 
             return res.send({ code: 200, payload: results });
         } catch (err) {
@@ -16,7 +16,7 @@ module.exports = {
         try {
             const { id } = req.params;
 
-            let found = await Customer.findById(id)
+            let found = await Order.findById(id);
 
             if (found) {
                 return res.send({ code: 200, payload: found });
@@ -35,32 +35,46 @@ module.exports = {
         try {
             const data = req.body;
 
-            const { email, phoneNumber, address } = data;
+            const { customerId, employeeId, orderDetails } = data;
 
-            const getEmailExits = Customer.find({ email });
-            const getPhoneExits = Customer.find({ phoneNumber });
-            const getAddressExits = Customer.find({ address });
+            const getCustomer = Customer.findById(customerId);
+            const getEmployee = Employee.findById(employeeId);
 
-            const [foundEmail, foundPhoneNumber, foundAddress] = await Promise.all([getEmailExits, getPhoneExits, getAddressExits]);
+            const [customer, employee] = await Promise.all([
+                getCustomer,
+                getEmployee,
+            ]);
 
             const errors = [];
-            if (foundEmail && foundEmail.length > 0) errors.push('Email đã tồn tại');
-            if (foundPhoneNumber && foundPhoneNumber.length > 0) errors.push('Số điện thoại đã tồn tại');
-            if (foundAddress && foundAddress.length > 0) errors.push('Địa chỉ đã tồn tại');
+            if (!customer || customer.isDelete)
+                errors.push('Khách hàng không tồn tại');
+            if (!employee || employee.isDelete)
+                errors.push('Nhân viên không tồn tại');
+
+            await asyncForEach(orderDetails, async (item) => {
+                const product = await Product.findById(item.productId);
+
+                if (!product)
+                    errors.push(`Sản phẩm ${item.productId} không có trong hệ thống`);
+            });
 
             if (errors.length > 0) {
                 return res.status(404).json({
                     code: 404,
-                    message: "Không thành công",
+                    message: 'Lỗi',
                     errors,
                 });
             }
 
-            const newItem = new Customer(data);
+            const newItem = new Order(data);
 
             let result = await newItem.save();
 
-            return res.send({ code: 200, message: 'Tạo thành công', payload: result });
+            return res.send({
+                code: 200,
+                message: 'Tạo thành công',
+                payload: result,
+            });
         } catch (err) {
             console.log('««««« err »»»»»', err);
             return res.status(500).json({ code: 500, error: err });
@@ -71,10 +85,14 @@ module.exports = {
         try {
             const { id } = req.params;
 
-            let found = await Customer.findByIdAndDelete(id);
+            let found = await Order.findByIdAndDelete(id);
 
             if (found) {
-                return res.send({ code: 200, payload: found, message: 'Xóa thành công' });
+                return res.send({
+                    code: 200,
+                    payload: found,
+                    message: 'Xóa thành công',
+                });
             }
 
             return res.status(410).send({ code: 404, message: 'Không tìm thấy' });
@@ -88,29 +106,38 @@ module.exports = {
             const { id } = req.params;
             const updateData = req.body;
 
-            const { email, phoneNumber, address } = updateData;
+            const { customerId, employeeId, orderDetails } = updateData;
 
-            const getEmailExits = Customer.find({ email });
-            const getPhoneExits = Customer.find({ phoneNumber });
-            const getAddressExits = Customer.find({ address });
+            const getCustomer = Customer.findById(customerId);
+            const getEmployee = Employee.findById(employeeId);
 
-            const [foundEmail, foundPhoneNumber, foundAddress] = await Promise.all([getEmailExits, getPhoneExits, getAddressExits]);
+            const [customer, employee] = await Promise.all([
+                getCustomer,
+                getEmployee,
+            ]);
 
             const errors = [];
-            if (foundEmail && foundEmail.length > 0) errors.push('Email đã tồn tại');
+            if (!customer || customer.isDelete)
+                errors.push('Khách hàng không tồn tại');
+            if (!employee || employee.isDelete)
+                errors.push('Nhân viên không tồn tại');
 
-            if (foundPhoneNumber && foundPhoneNumber.length > 0) errors.push('Số điện thoại đã tồn tại');
-            if (foundAddress && foundAddress.length > 0) errors.push('Địa chỉ đã tồn tại');
+            await asyncForEach(orderDetails, async (item) => {
+                const product = await Product.findById(item.productId);
+
+                if (!product)
+                    errors.push(`Sản phẩm ${item.productId} không có trong hệ thống`);
+            });
 
             if (errors.length > 0) {
                 return res.status(404).json({
                     code: 404,
-                    message: "Không thành công",
+                    message: 'Lỗi',
                     errors,
                 });
             }
 
-            const found = await Customer.findByIdAndUpdate(id, updateData, {
+            const found = await Order.findByIdAndUpdate(id, updateData, {
                 new: true,
             });
 

@@ -5,8 +5,8 @@ module.exports = {
   getProductAll: async (req, res, next) => {
     try {
       let results = await Product.find()
-        .populate('category')
-        .populate('supplier');
+        .populate('categoryId')
+        .populate('supplierId');
 
       return res.send({ code: 200, payload: results });
     } catch (err) {
@@ -14,17 +14,17 @@ module.exports = {
     }
   },
 
-  getBestSeller: async (req, res, next) => {
+  getHotSell: async (req, res, next) => {
     try {
-      const orders = await Order.find({ createdDate: { $gte: moment().subtract(2, "days") } }).lean();
+      const orders = await Order.find({ createdDate: { $gte: moment().subtract(30, "days") } }).lean();
       const bestSellerIds = [...new Set(orders.map(order => order.orderDetails || [])
         .flat()
         .sort((order1, order2) => order1.quantity - order2.quantity)
         .map(order => order.productId))];
 
       let results = await Product.find({ _id: { $in: bestSellerIds } })
-        .populate('category')
-        .populate('supplier');
+        .populate('categoryId')
+        .populate('supplierId');
 
       return res.send({ code: 200, payload: results });
     } catch (err) {
@@ -37,8 +37,8 @@ module.exports = {
       const { id } = req.params;
 
       let found = await Product.findById(id)
-        .populate('category')
-        .populate('supplier');
+        .populate('categoryId')
+        .populate('supplierId');
 
       if (found) {
         return res.send({ code: 200, payload: found });

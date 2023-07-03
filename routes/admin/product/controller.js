@@ -5,8 +5,8 @@ module.exports = {
     getProductAll: async (req, res, next) => {
         try {
             let results = await Product.find()
-                .populate('category')
-                .populate('supplier');
+                .populate('categoryId')
+                .populate('supplierId');
 
             return res.send({ code: 200, payload: results });
         } catch (err) {
@@ -19,8 +19,8 @@ module.exports = {
             const { id } = req.params;
 
             let found = await Product.findById(id)
-                .populate('category')
-                .populate('supplier');
+                .populate('categoryId')
+                .populate('supplierId');
 
             if (found) {
                 return res.send({ code: 200, payload: found });
