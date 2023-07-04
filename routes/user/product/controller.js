@@ -4,11 +4,25 @@ const moment = require('moment');
 module.exports = {
   getProductAll: async (req, res, next) => {
     try {
-      let results = await Product.find()
-        .populate('categoryId')
-        .populate('supplierId');
+      let perPage = 30;
+      let page = parseInt(req.params.page || 1, 10);
 
-      return res.send({ code: 200, payload: results });
+      let [results, count] = await Promise.all([
+        Product.find()
+          .populate('categoryId')
+          .populate('supplierId')
+          .skip((perPage * page) - perPage)
+          .limit(perPage),
+        Product.countDocuments(),
+      ]);
+
+      const payload = {
+        products: results,
+        currentPage: page,
+        pages: Math.ceil(count / perPage),
+      }
+
+      return res.send({ code: 200, payload });
     } catch (err) {
       return res.status(500).json({ code: 500, error: err });
     }
@@ -16,17 +30,58 @@ module.exports = {
 
   getHotSell: async (req, res, next) => {
     try {
+      let perPage = 10;
+      let page = parseInt(req.params.page || 1, 10);
+
       const orders = await Order.find({ createdDate: { $gte: moment().subtract(30, "days") } }).lean();
       const bestSellerIds = [...new Set(orders.map(order => order.orderDetails || [])
         .flat()
         .sort((order1, order2) => order1.quantity - order2.quantity)
         .map(order => order.productId))];
 
-      let results = await Product.find({ _id: { $in: bestSellerIds } })
-        .populate('categoryId')
-        .populate('supplierId');
+      let [results, count] = await Promise.all([
+        Product.find({ _id: { $in: bestSellerIds } })
+          .populate('categoryId')
+          .populate('supplierId')
+          .skip((perPage * page) - perPage)
+          .limit(perPage),
+        Product.countDocuments({ _id: { $in: bestSellerIds } }),
+      ]);
 
-      return res.send({ code: 200, payload: results });
+      const payload = {
+        products: results,
+        currentPage: page,
+        pages: Math.ceil(count / perPage),
+      }
+
+      return res.send({ code: 200, payload });
+    } catch (err) {
+      return res.status(500).json({ code: 500, error: err });
+    }
+  },
+
+  getFlashSell: async (req, res, next) => {
+    try {
+      let perPage = 5;
+      let page = parseInt(req.params.page || 1, 10);
+
+      const [flashSellProducts, count] = await Promise.all([
+        Product.find()
+          .populate('categoryId')
+          .populate('supplierId')
+          .sort({ discount: -1 })
+          .skip((perPage * page) - perPage)
+          .limit(perPage),
+        Product.countDocuments(),
+      ]);
+
+      const payload = {
+        products: flashSellProducts,
+        currentPage: page,
+        pages: Math.ceil(count / perPage),
+      }
+
+      return res.send({ code: 200, payload });
     } catch (err) {
       return res.status(500).json({ code: 500, error: err });
     }

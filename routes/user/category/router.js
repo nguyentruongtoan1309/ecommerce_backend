@@ -11,10 +11,8 @@ const {
   getDetail,
 } = require('./controller');
 
-router.route('/')
-  .get(getAll)
-
-router.route('/:id')
-  .get(validateSchema(getDetailSchema), getDetail)
+router.route('/').get(getAll)
+router.route('/:page').get(getAll)
+router.route('/:id').get(validateSchema(getDetailSchema), getDetail)
 
 module.exports = router;

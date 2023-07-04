@@ -4,9 +4,21 @@ const { Category } = require('../../../models');
 module.exports = {
   getAll: async (req, res, next) => {
     try {
-      let results = await Category.find()
+      let perPage = 20;
+      let page = parseInt(req.params.page || 1, 10);
 
-      return res.send({ code: 200, payload: results });
+      let [results, count] = await Promise.all([
+        Category.find().skip((perPage * page) - perPage).limit(perPage),
+        Category.countDocuments(),
+      ]);
+
+      const payload = {
+        categories: results,
+        currentPage: page,
+        pages: Math.ceil(count / perPage),
+      }
+
+      return res.send({ code: 200, payload });
     } catch (err) {
       return res.status(500).json({ code: 500, error: err });
     }
