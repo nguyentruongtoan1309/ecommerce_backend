@@ -62,7 +62,7 @@ module.exports = {
 
   getFlashSell: async (req, res, next) => {
     try {
-      let perPage = 5;
+      let perPage = 10;
       let page = parseInt(req.params.page || 1, 10);
 
       const [flashSellProducts, count] = await Promise.all([
