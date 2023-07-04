@@ -33,23 +33,49 @@ module.exports = {
       let perPage = 10;
       let page = parseInt(req.params.page || 1, 10);
 
-      const orders = await Order.find({ createdDate: { $gte: moment().subtract(30, "days") } }).lean();
-      const bestSellerIds = [...new Set(orders.map(order => order.orderDetails || [])
-        .flat()
-        .sort((order1, order2) => order1.quantity - order2.quantity)
-        .map(order => order.productId))];
+      const bestSeller = await Order.aggregate([
+        {
+          $match: {
+            createdDate: { $gte: new Date(moment().subtract(30, "days").valueOf()) },
+            status: { $ne: 'CANCELED' }
+          }
+        },
+        { $unwind: { path: "$orderDetails" } },
+        {
+          $group: {
+            _id: "$orderDetails.productId",
+            sum: {
+              $sum: "$orderDetails.quantity"
+            }
+          }
+        },
+        { $sort: { sum: -1 } },
+      ]);
+
+      const soldQuantityOfProduct = {};
+      bestSeller.forEach(item => {
+        soldQuantityOfProduct[item._id] = item.sum;
+      });
+
+      const bestSellerIds = Object.keys(soldQuantityOfProduct);
 
       let [results, count] = await Promise.all([
         Product.find({ _id: { $in: bestSellerIds } })
           .populate('categoryId')
           .populate('supplierId')
           .skip((perPage * page) - perPage)
-          .limit(perPage),
+          .limit(perPage)
+          .lean(),
         Product.countDocuments({ _id: { $in: bestSellerIds } }),
       ]);
 
+      const products = results.map(product => ({
+        ...product,
+        soldProduct: soldQuantityOfProduct[product._id.toString()]
+      })).sort((pro1, pro2) => pro2.soldProduct - pro1.soldProduct);
+
       const payload = {
-        products: results,
+        products,
         currentPage: page,
         pages: Math.ceil(count / perPage),
       }
